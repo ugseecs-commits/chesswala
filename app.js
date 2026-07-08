@@ -1011,7 +1011,16 @@ window.app = {
 
   // â”€â”€â”€ MOVE EXECUTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   execMove(fromRow, fromCol, toRow, toCol, flags, promo = null) {
-    console.log("Local move executed:", {fromRow, fromCol, toRow, toCol, flags, promo}, "Turn:", turn, "Board FEN:", boardToFen(board, turn, castling, enPassantSquare));
+    let stateSnapshot = null;
+    if (webrtc.active && this.gameState === 'playing' && !over) {
+      stateSnapshot = {
+        fen: boardToFen(board, turn, castling, enPassantSquare),
+        turn: turn,
+        castling: { ...castling },
+        enPassant: enPassantSquare ? { ...enPassantSquare } : null
+      };
+    }
+
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
 
     // Roll dice for next turn if Dice Chess
@@ -1020,11 +1029,9 @@ window.app = {
     }
 
     // Sync online move if multi - only while an actual live game is in progress.
-    // (webrtc.active alone isn't enough: the connection stays open in the
-    // post-game lobby too, and analysis/branch moves there shouldn't be sent.)
     if (webrtc.active && this.gameState === 'playing' && !over && turn !== webrtc.myColor) {
       const myTime = webrtc.myColor === 'w' ? window.timer.whiteTime : window.timer.blackTime;
-      webrtc.sendMove(fromRow, fromCol, toRow, toCol, flags, promo, myTime);
+      webrtc.sendMove(fromRow, fromCol, toRow, toCol, flags, promo, myTime, stateSnapshot);
     }
 
     this.renderAll();
@@ -2150,6 +2157,7 @@ window.app = {
       'request-clock-sync':  (d) => this.onClockSyncRequest(d),
       'clock-sync-response': (d) => this.onClockSyncResponse(d),
       'state-sync':          (d) => this.onStateSync(d),
+      'request-state-sync':  ()  => this.syncFullBoardState(),
     };
     const handler = handlers[data.type];
     if (handler) handler(data);
@@ -2211,6 +2219,23 @@ window.app = {
 
   onRemoteMove(data) {
     const { fromRow, fromCol, toRow, toCol, flags, promo } = data.move;
+    const senderState = data.state;
+
+    if (senderState) {
+      const localFen = boardToFen(board, turn, castling, enPassantSquare);
+      if (senderState.fen !== localFen || senderState.turn !== turn) {
+        console.error("STATE MISMATCH DETECTED BEFORE MOVE APPLICATION!", {
+          senderFen: senderState.fen,
+          localFen: localFen,
+          senderTurn: senderState.turn,
+          localTurn: turn,
+          senderCastling: JSON.stringify(senderState.castling),
+          localCastling: JSON.stringify(castling),
+          senderEnPassant: JSON.stringify(senderState.enPassant),
+          localEnPassant: JSON.stringify(enPassantSquare)
+        });
+      }
+    }
 
     const legalMoves = allLegalMoves(turn, board, enPassantSquare, castling, true);
     const isValid = legalMoves.some(m =>
@@ -2239,9 +2264,6 @@ window.app = {
     }
 
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
-    // NOTE: Do NOT call rollDice here. The Host rolls dice and broadcasts
-    // the result via a separate 'dice-roll' packet received by onDiceRoll().
-    // Rolling locally here would desync the dice state.
     this.renderAll();
   },
 
