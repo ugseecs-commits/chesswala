@@ -2219,6 +2219,7 @@ window.app = {
     );
 
     if (!isValid) {
+      const moveStr = squareToAlg({r: fromRow, c: fromCol}) + squareToAlg({r: toRow, c: toCol});
       console.error('Illegal remote move received:', data.move,
                     'Turn:', turn,
                     'MyColor:', webrtc.myColor,
@@ -2226,7 +2227,7 @@ window.app = {
                     'Allowed Dice:', window.variants ? window.variants.allowedDiceTypes : 'N/A',
                     'Legal Moves:', legalMoves.map(m => `${squareToAlg(m.from)}->${squareToAlg(m.to)}`));
       if (webrtc.active) webrtc.sendData({ type: 'abort' });
-      this.showAbortBanner('Desync Detected', 'Move was illegal.');
+      this.showAbortBanner('Desync Detected', `Move: ${moveStr} | Turn: ${turn} | Side: ${webrtc.myColor}`);
       return;
     }
 
