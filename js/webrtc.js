@@ -82,8 +82,15 @@ window.webrtc = {
         onConnect,
         (data) => { if (window.app && window.app.handleMultiplayerMessage) window.app.handleMultiplayerMessage(data); }
       );
+
+      // Only sync full board state on reconnection (game already in progress with move history).
+      // Do NOT fire on a fresh connection — it races against the start-game handshake.
       if (window.app && window.app.syncFullBoardState) {
-        setTimeout(() => window.app.syncFullBoardState(), WEBRTC_TIMING.FULL_SYNC_DELAY_MS);
+        setTimeout(() => {
+          if (window.app.gameState === 'playing' && typeof moveHistory !== 'undefined' && moveHistory.length > 0) {
+            window.app.syncFullBoardState();
+          }
+        }, WEBRTC_TIMING.FULL_SYNC_DELAY_MS);
       }
     });
 
@@ -248,11 +255,12 @@ window.webrtc = {
     }
   },
 
-  sendMove(fromRow, fromCol, toRow, toCol, flags, promo, remainingTime) {
+  sendMove(fromRow, fromCol, toRow, toCol, flags, promo, remainingTime, stateSnapshot) {
     this.sendData({
       type: 'move',
       move: { fromRow, fromCol, toRow, toCol, flags, promo },
-      remainingTime: remainingTime
+      remainingTime: remainingTime,
+      state: stateSnapshot
     });
   },
 
