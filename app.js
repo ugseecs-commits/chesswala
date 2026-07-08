@@ -2315,6 +2315,7 @@ window.app = {
   onStartGame(data) {
     this.localReset();
     this.gameState = 'playing';
+    flipped = (webrtc.myColor === 'b');
     if (data.variants) {
       window.variants.diceChessEnabled      = data.variants.diceChessEnabled;
       window.variants.fogOfWarEnabled       = data.variants.fogOfWarEnabled;
@@ -2749,7 +2750,7 @@ function sqFromXY(x, y) {
   const col = Math.floor((x - rect.left) / (rect.width / 8));
   const row = Math.floor((y - rect.top) / (rect.height / 8));
   if (col < 0 || col > 7 || row < 0 || row > 7) return null;
-  const isPerspectiveFlipped = (window.webrtc && window.webrtc.active && window.app && window.app.gameState === 'playing') ? (webrtc.myColor === 'b') : flipped;
+  const isPerspectiveFlipped = flipped;
   const r = isPerspectiveFlipped ? 7 - row : row;
   const c = isPerspectiveFlipped ? 7 - col : col;
   return { r, c };
