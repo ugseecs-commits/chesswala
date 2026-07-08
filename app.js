@@ -2090,6 +2090,8 @@ window.app = {
   },
 
   startGameWithSettings(variants, myColor, clockConfig) {
+    this.localReset();
+
     webrtc.myColor = myColor;
     window.variants.diceChessEnabled = variants.diceChessEnabled;
     window.variants.fogOfWarEnabled = variants.fogOfWarEnabled;
@@ -2107,7 +2109,6 @@ window.app = {
       window.timer.init(0, 0, 0, 0);
     }
 
-    this.localReset();
     this.gameState = 'playing';
     flipped = (myColor === 'b'); // Set initial online perspective based on color
     window.variants.init();
@@ -2218,7 +2219,12 @@ window.app = {
     );
 
     if (!isValid) {
-      console.error('Illegal remote move received:', data.move);
+      console.error('Illegal remote move received:', data.move,
+                    'Turn:', turn,
+                    'MyColor:', webrtc.myColor,
+                    'Board FEN:', boardToFen(board, turn, castling, enPassantSquare),
+                    'Allowed Dice:', window.variants ? window.variants.allowedDiceTypes : 'N/A',
+                    'Legal Moves:', legalMoves.map(m => `${squareToAlg(m.from)}->${squareToAlg(m.to)}`));
       if (webrtc.active) webrtc.sendData({ type: 'abort' });
       this.showAbortBanner('Desync Detected', 'Move was illegal.');
       return;
