@@ -1,4 +1,5 @@
 // --- CHESSOLOGY APPLICATION LAYER -------------------------------------------
+console.log("Chessology app.js loaded: Version [P2P-Sync-Fix-v4]");
 const APP_TIMING = {
   SESSION_RESTORE_DELAY_MS: 500,
   RESULT_BANNER_DELAY_MS: 300,
@@ -1011,6 +1012,16 @@ window.app = {
 
   // â”€â”€â”€ MOVE EXECUTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   execMove(fromRow, fromCol, toRow, toCol, flags, promo = null) {
+    let stateSnapshot = null;
+    if (webrtc.active && this.gameState === 'playing' && !over) {
+      stateSnapshot = {
+        fen: boardToFen(board, turn, castling, enPassantSquare),
+        turn: turn,
+        castling: { ...castling },
+        enPassant: enPassantSquare ? { ...enPassantSquare } : null
+      };
+    }
+
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
 
     // Roll dice for next turn if Dice Chess
@@ -1019,11 +1030,9 @@ window.app = {
     }
 
     // Sync online move if multi - only while an actual live game is in progress.
-    // (webrtc.active alone isn't enough: the connection stays open in the
-    // post-game lobby too, and analysis/branch moves there shouldn't be sent.)
     if (webrtc.active && this.gameState === 'playing' && !over && turn !== webrtc.myColor) {
       const myTime = webrtc.myColor === 'w' ? window.timer.whiteTime : window.timer.blackTime;
-      webrtc.sendMove(fromRow, fromCol, toRow, toCol, flags, promo, myTime);
+      webrtc.sendMove(fromRow, fromCol, toRow, toCol, flags, promo, myTime, stateSnapshot);
     }
 
     this.renderAll();
@@ -2090,6 +2099,8 @@ window.app = {
   },
 
   startGameWithSettings(variants, myColor, clockConfig) {
+    this.localReset();
+
     webrtc.myColor = myColor;
     window.variants.diceChessEnabled = variants.diceChessEnabled;
     window.variants.fogOfWarEnabled = variants.fogOfWarEnabled;
@@ -2107,7 +2118,6 @@ window.app = {
       window.timer.init(0, 0, 0, 0);
     }
 
-    this.localReset();
     this.gameState = 'playing';
     flipped = (myColor === 'b'); // Set initial online perspective based on color
     window.variants.init();
@@ -2148,6 +2158,7 @@ window.app = {
       'request-clock-sync':  (d) => this.onClockSyncRequest(d),
       'clock-sync-response': (d) => this.onClockSyncResponse(d),
       'state-sync':          (d) => this.onStateSync(d),
+      'request-state-sync':  ()  => this.syncFullBoardState(),
     };
     const handler = handlers[data.type];
     if (handler) handler(data);
@@ -2209,8 +2220,25 @@ window.app = {
 
   onRemoteMove(data) {
     const { fromRow, fromCol, toRow, toCol, flags, promo } = data.move;
+    const senderState = data.state;
 
-    const legalMoves = allLegalMoves(turn, board, enPassantSquare, castling);
+    if (senderState) {
+      const localFen = boardToFen(board, turn, castling, enPassantSquare);
+      if (senderState.fen !== localFen || senderState.turn !== turn) {
+        console.error("STATE MISMATCH DETECTED BEFORE MOVE APPLICATION!", {
+          senderFen: senderState.fen,
+          localFen: localFen,
+          senderTurn: senderState.turn,
+          localTurn: turn,
+          senderCastling: JSON.stringify(senderState.castling),
+          localCastling: JSON.stringify(castling),
+          senderEnPassant: JSON.stringify(senderState.enPassant),
+          localEnPassant: JSON.stringify(enPassantSquare)
+        });
+      }
+    }
+
+    const legalMoves = allLegalMoves(turn, board, enPassantSquare, castling, true);
     const isValid = legalMoves.some(m =>
       m.from.r === fromRow && m.from.c === fromCol &&
       m.to.r === toRow && m.to.c === toCol &&
@@ -2218,9 +2246,14 @@ window.app = {
     );
 
     if (!isValid) {
-      console.error('Illegal remote move received:', data.move);
+      const moveStr = squareToAlg({r: fromRow, c: fromCol}) + squareToAlg({r: toRow, c: toCol});
+      const legalMovesStr = legalMoves.map(m => `${squareToAlg(m.from)}->${squareToAlg(m.to)}`).join(', ');
+      const diceStr = window.variants ? window.variants.allowedDiceTypes.join(',') : 'N/A';
+      const debugText = `MOVE: ${moveStr} | TURN: ${turn} | MY_COLOR: ${webrtc.myColor} | FEN: ${boardToFen(board, turn, castling, enPassantSquare)} | DICE: ${diceStr} | LEGAL_MOVES: [${legalMovesStr}]`;
+      console.error('ILLEGAL REMOTE MOVE DETAILS:', debugText);
+
       if (webrtc.active) webrtc.sendData({ type: 'abort' });
-      this.showAbortBanner('Desync Detected', 'Move was illegal.');
+      this.showAbortBanner('Desync Detected', `Move: ${moveStr} | Turn: ${turn} | Side: ${webrtc.myColor}`);
       return;
     }
 
@@ -2231,7 +2264,6 @@ window.app = {
     }
 
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
-    if (window.variants.diceChessEnabled) window.variants.rollDice(turn);
     this.renderAll();
   },
 
@@ -2308,6 +2340,7 @@ window.app = {
   onStartGame(data) {
     this.localReset();
     this.gameState = 'playing';
+    flipped = (webrtc.myColor === 'b');
     if (data.variants) {
       window.variants.diceChessEnabled      = data.variants.diceChessEnabled;
       window.variants.fogOfWarEnabled       = data.variants.fogOfWarEnabled;
@@ -2742,7 +2775,7 @@ function sqFromXY(x, y) {
   const col = Math.floor((x - rect.left) / (rect.width / 8));
   const row = Math.floor((y - rect.top) / (rect.height / 8));
   if (col < 0 || col > 7 || row < 0 || row > 7) return null;
-  const isPerspectiveFlipped = (window.webrtc && window.webrtc.active && window.app && window.app.gameState === 'playing') ? (webrtc.myColor === 'b') : flipped;
+  const isPerspectiveFlipped = flipped;
   const r = isPerspectiveFlipped ? 7 - row : row;
   const c = isPerspectiveFlipped ? 7 - col : col;
   return { r, c };
