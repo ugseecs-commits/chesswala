@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Chessology -- a browser chess app with multiplayer, Stockfish analysis, and four custom variants: Dice Chess, Fog of War, Draft Mode, and Identity Theft.">
+<meta property="og:title" content="Chessology">
+<meta property="og:description" content="Play chess in your browser. Challenge a friend peer-to-peer, try custom variants, and analyse with Stockfish 18 -- no install required.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Chessology">
+<meta name="twitter:description" content="Browser chess with multiplayer, Stockfish analysis, and four custom variants.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♟</text></svg>">
+<title>Chessology</title>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="game-wrap">
+
+  <!-- Left Panel -->
+  <div class="left-panel side-panel" id="leftPanel">
+    <header>
+      <span class="crown">♔</span>
+      <h1>Chessology</h1>
+    </header>
+
+
+
+    <!-- Setup Flow -->
+    <div class="card" id="setupCard">
+
+      <!-- Step 1: Main Menu -->
+      <div class="setup-step" id="stepMode">
+        <div class="card-hd">
+          Game Setup
+        </div>
+        <div class="status-body" style="padding:14px; gap:10px">
+          
+          <!-- Auth Section -->
+          <div class="auth-box" style="display:flex; align-items:center; justify-content:space-between; padding:0 0 12px 0; border-bottom:1px solid var(--border); margin-bottom: 4px;">
+             <div style="font-size:1.05rem; color:var(--text);">
+               Hello <span id="authUsernameDisplay" style="color:var(--gold); font-family:'Inter', sans-serif; font-weight:800; font-size:1.15rem; margin-left:2px;">...</span>!
+             </div>
+             <div>
+               <button class="btn" id="googleSignInBtn" style="padding:4px 8px; font-size:0.75rem; min-width:unset; background:transparent; border:1px solid var(--gold); color:var(--gold); border-radius:4px;">Sign in</button>
+               <button class="btn" id="googleSignOutBtn" style="padding:4px 8px; font-size:0.75rem; min-width:unset; background:transparent; border:1px solid var(--dim); color:var(--dim); border-radius:4px; display:none;">Sign out</button>
+             </div>
+          </div>
+          
+          <!-- Online Challenge Section -->
+          <div class="join-code-wrap">
+            <label class="join-code-label" style="font-size:0.85rem; margin-bottom:8px; color:var(--dim);">Connect to Opponent</label>
+            <input type="text" id="connIdInput" class="join-code-input" placeholder="Enter Username" autocomplete="off" spellcheck="false" style="text-transform:none; letter-spacing:0px; font-family:'Inter',sans-serif; font-weight:600; font-size:1.1rem; padding:10px;">
+            <button class="btn primary" id="joinGameBtn" style="width:100%; margin-top:8px;">Connect</button>
+          </div>
+          
+          <!-- Offline Button -->
+          <div style="margin-top:8px; border-top:1px solid var(--border); padding-top:14px;">
+            <button class="mode-btn" id="modeOfflineBtn" style="flex-direction:row; padding:12px; width:100%; justify-content:center; align-items:center; border:1px solid var(--border); background:var(--panel2);">
+              <span class="mode-icon" style="margin-right:8px; width:18px; height:18px;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                </svg>
+              </span>
+              <span class="mode-label" style="font-size:0.95rem; margin-top:0;">Play Offline</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Step 4: Mutual Online Lobby -->
+      <div class="setup-step" id="stepOnlineLobby" style="display:none">
+        <div class="card-hd">
+          <button class="back-btn" id="disconnectLobbyBtn">‹ Disconnect</button>
+          Online Lobby
+        </div>
+        <div class="status-body" style="gap:8px; padding:12px">
+          <div style="font-size:0.8rem; color:var(--text); text-align:center; margin-bottom:8px;">
+            Connected to <span id="lobbyPeerName" style="color:var(--gold); font-weight:bold;">Opponent</span>!
+          </div>
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="diceChessToggle"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><rect x="2" y="2" width="20" height="20" rx="3"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg> Dice Chess</label></div>
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="fogOfWarToggle"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M22 22 2 2" stroke-opacity="0.5"/></svg> Fog of War</label></div>
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="draftModeToggle"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Draft Mode</label></div>
+          <div class="settings-row">
+            <label class="toggle-label"><input type="checkbox" id="identityTheftToggle"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><ellipse cx="8" cy="12" rx="3.5" ry="2.5"/><ellipse cx="16" cy="12" rx="3.5" ry="2.5"/><path d="M11.5 12h1"/><path d="M2 10c1-3 4-4 6-4s3 1 4 1 2-1 4-1 5 1 6 4"/></svg> Identity Theft</label>
+            <select id="identityTheftMode" class="select-input"><option value="steal">Steal</option><option value="append">Append</option></select>
+          </div>
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="handAndBrainToggle"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 0-3-4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M9 13a4.5 4.5 0 0 1 3-4"/><path d="M6.401 6.5a3 3 0 0 1-.399-1.375"/></svg> Hand and Brain</label></div>
+          
+          <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top:4px;">
+            <label style="font-size:0.75rem; color:var(--dim)">Time Control:</label>
+            <select id="clockSelectLobby" style="display:none;">
+              <option value="0|0">Unlimited (0+0)</option>
+              <option value="3|0">Blitz 3+0</option>
+              <option value="5|0">Blitz 5+0</option>
+              <option value="10|0">Rapid 10+0</option>
+              <option value="10|5">Rapid 10+5</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <div class="time-control-grid" id="tcGridLobby">
+              <button type="button" class="tc-btn active" data-val="0|0">Unlimited</button>
+              <button type="button" class="tc-btn" data-val="3|0">3 min</button>
+              <button type="button" class="tc-btn" data-val="5|0">5 min</button>
+              <button type="button" class="tc-btn" data-val="10|0">10 min</button>
+              <button type="button" class="tc-btn" data-val="10|5">10+5</button>
+              <button type="button" class="tc-btn" data-val="custom">Custom</button>
+            </div>
+          </div>
+          
+          <div id="customClockUILobby" style="display:none; flex-direction:column; gap:4px; margin-top:4px;">
+            <div class="custom-clock-row">
+              <span>White:</span>
+              <input type="number" id="wTimeLobby" placeholder="Min" class="custom-clock-input" min="0">
+              <span style="flex:0;color:var(--dim)">+</span>
+              <input type="number" id="wIncLobby" placeholder="Sec" class="custom-clock-input" min="0">
+            </div>
+            <div class="custom-clock-row">
+              <span>Black:</span>
+              <input type="number" id="bTimeLobby" placeholder="Min" class="custom-clock-input" min="0">
+              <span style="flex:0;color:var(--dim)">+</span>
+              <input type="number" id="bIncLobby" placeholder="Sec" class="custom-clock-input" min="0">
+            </div>
+          </div>
+          
+          <div style="font-size: 0.72rem; color: var(--dim); margin-top:8px; margin-bottom: 2px;">Your Color:</div>
+          <div class="segmented-control" id="lobbyColorSeg">
+            <button class="segmented-btn active" data-color="random">Random</button>
+            <button class="segmented-btn" data-color="w">White</button>
+            <button class="segmented-btn" data-color="b">Black</button>
+          </div>
+
+          <button class="btn primary" id="sendChallengeBtn" style="width:100%; margin-top:8px; font-size:.9rem; padding:10px;">Send Challenge</button>
+        </div>
+      </div>
+
+      <!-- Offline Variants (shown inline when offline) -->
+      <div class="setup-step" id="stepOfflineVariants" style="display:none">
+        <div class="card-hd">
+          <button class="back-btn" id="backToModeFromOfflineBtn">‹ Back</button>
+          Game Variants
+        </div>
+        <div class="status-body" style="gap:8px; padding:12px">
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="diceChessToggleOffline"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><rect x="2" y="2" width="20" height="20" rx="3"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg> Dice Chess</label></div>
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="draftModeToggleOffline"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Draft Mode</label></div>
+          <div class="settings-row">
+            <label class="toggle-label"><input type="checkbox" id="identityTheftToggleOffline"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><ellipse cx="8" cy="12" rx="3.5" ry="2.5"/><ellipse cx="16" cy="12" rx="3.5" ry="2.5"/><path d="M11.5 12h1"/><path d="M2 10c1-3 4-4 6-4s3 1 4 1 2-1 4-1 5 1 6 4"/></svg> Identity Theft</label>
+            <select id="identityTheftModeOffline" class="select-input"><option value="steal">Steal</option><option value="append">Append</option></select>
+          </div>
+          <div class="settings-row"><label class="toggle-label"><input type="checkbox" id="handAndBrainToggleOffline"> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 0-3-4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M9 13a4.5 4.5 0 0 1 3-4"/><path d="M6.401 6.5a3 3 0 0 1-.399-1.375"/></svg> Hand and Brain</label></div>
+          
+          <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top:4px;">
+            <label style="font-size:0.75rem; color:var(--dim)">Time Control:</label>
+            <select id="clockSelectOffline" style="display:none;">
+              <option value="0|0">Unlimited (0+0)</option>
+              <option value="3|0">Blitz 3+0</option>
+              <option value="5|0">Blitz 5+0</option>
+              <option value="10|0">Rapid 10+0</option>
+              <option value="10|5">Rapid 10+5</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <div class="time-control-grid" id="tcGridOffline">
+              <button type="button" class="tc-btn active" data-val="0|0">Unlimited</button>
+              <button type="button" class="tc-btn" data-val="3|0">3 min</button>
+              <button type="button" class="tc-btn" data-val="5|0">5 min</button>
+              <button type="button" class="tc-btn" data-val="10|0">10 min</button>
+              <button type="button" class="tc-btn" data-val="10|5">10+5</button>
+              <button type="button" class="tc-btn" data-val="custom">Custom</button>
+            </div>
+          </div>
+          
+          <div id="customClockUIOffline" style="display:none; flex-direction:column; gap:4px; margin-top:4px;">
+            <div class="custom-clock-row">
+              <span>White:</span>
+              <input type="number" id="wTimeOff" placeholder="Min" class="custom-clock-input" min="0">
+              <span style="flex:0;color:var(--dim)">+</span>
+              <input type="number" id="wIncOff" placeholder="Sec" class="custom-clock-input" min="0">
+            </div>
+            <div class="custom-clock-row">
+              <span>Black:</span>
+              <input type="number" id="bTimeOff" placeholder="Min" class="custom-clock-input" min="0">
+              <span style="flex:0;color:var(--dim)">+</span>
+              <input type="number" id="bIncOff" placeholder="Sec" class="custom-clock-input" min="0">
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="btn primary" id="playBtn" onclick="window.app.startGameNormal()" style="flex: 2; font-size:.9rem; padding:10px;">▶ Play</button>
+            <button class="btn" id="startFromPosBtn" onclick="window.app.startGameFromCurrent()" style="flex: 3; font-size:.78rem; padding:10px; white-space: nowrap;">Start from Pos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step: Waiting for Host -->
+      <div class="setup-step" id="stepWaitHost" style="display:none">
+        <div class="card-hd">Waiting for Host</div>
+        <div class="status-body" style="gap:10px; padding:20px; text-align:center;">
+          <div style="font-size: 1.5rem; color: var(--gold); margin-bottom: 8px;">⏳</div>
+          <div style="font-size: 0.8rem; color: var(--text);">Waiting for the host to start the game...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Game Controls Card -->
+    <div class="card" id="gameActionsCard" style="display:none">
+      <div class="card-hd">Game Controls</div>
+      <div class="status-body" style="padding:10px;">
+        <div class="status-txt" id="statusTxt" style="font-size:0.9rem; margin-bottom:8px; text-align:center;">White to move</div>
+        <div class="btn-row" style="flex-wrap: wrap; gap: 6px;">
+          <button class="btn" id="resignBtn" onclick="window.app.resignGame()" style="display:none; color: #ff4444; flex: 1;">Resign</button>
+          <button class="btn" id="drawBtn" onclick="window.app.offerDraw()" style="display:none; color: #44aaff; flex: 1;">Draw</button>
+          <button class="btn" id="undoBtn" onclick="undoMove()" style="display:none; flex: 1;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Undo</button>
+          <button class="btn" id="rematchBtnStatus" onclick="window.app.rematch()" style="display:none; color: var(--gold); flex: 1;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Rematch</button>
+          <button class="btn" id="returnToMenuBtn" onclick="window.app.goToMenu()" style="display:none; color: var(--dim); flex: 1;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Local Perspective Card -->
+    <div class="card" id="perspectiveCard" style="display:none">
+      <div class="card-hd">Local Perspective</div>
+      <div class="status-body" style="padding:10px;">
+        <div class="segmented-control" id="passPlaySeg">
+          <button class="segmented-btn active" data-val="static">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Static
+          </button>
+          <button class="segmented-btn" data-val="rotate">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>Rotate
+          </button>
+          <button class="segmented-btn" data-val="bothSides">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M12 2v9"/><path d="m9 8 3 3 3-3"/><path d="M12 22v-9"/><path d="m9 16 3-3 3 3"/></svg>Opposite
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Draft Placement UI Card -->
+    <div class="card" id="draftUI" style="display:none"></div>
+
+    <!-- Board Editor Placement UI Card -->
+    <div class="card" id="editorUI" style="display:none"></div>
+  </div>
+
+  <div class="board-col">
+    <!-- Black player (top) -->
+    <div class="player-bar" id="barB">
+      <div class="p-info">
+        <div class="p-avatar b">B</div>
+        <span class="p-name">Black</span>
+        <div class="turn-dot"></div>
+      </div>
+      <div class="p-right">
+        <div class="p-caps" id="capB"></div>
+        <div class="p-score" id="scoreB"></div>
+        <div class="p-clock" id="clockB" style="display:none; font-family:'JetBrains Mono',monospace; font-size:0.85rem; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:6px;"></div>
+      </div>
+    </div>
+
+    <div class="board-outer">
+      <div style="display: flex; flex-direction: column;">
+        <div class="board-frame">
+          <div id="evalBar" class="eval-bar" style="display:none;">
+            <div id="evalFill" class="eval-fill"></div>
+            <div id="evalText" class="eval-text">0.0</div>
+          </div>
+          <div class="board" id="boardEl"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- White player (bottom) -->
+    <div class="player-bar" id="barW">
+      <div class="p-info">
+        <div class="p-avatar w">W</div>
+        <span class="p-name">White</span>
+        <div class="turn-dot"></div>
+      </div>
+      <div class="p-right">
+        <div class="p-caps" id="capW"></div>
+        <div class="p-score" id="scoreW"></div>
+        <div class="p-clock" id="clockW" style="display:none; font-family:'JetBrains Mono',monospace; font-size:0.85rem; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel side-panel" id="rightPanel">
+
+    <!-- Move History Card -->
+    <div class="card hist-card">
+      <div class="card-hd" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Move History</span>
+        <select id="branchSelect" class="select-input" style="font-size: 0.75rem; padding: 2px 6px; width: auto; max-width: 140px; display: none; height: 24px; margin: 0;"></select>
+      </div>
+      <div class="hist-body" id="histBody"></div>
+    </div>
+
+    <!-- Settings Card -->
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
+      <div class="status-body" style="padding:10px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; font-size: 0.72rem;">
+          <label class="toggle-label" style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><input type="checkbox" id="soundToggleBtn" checked> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> Sound</label>
+          <label class="toggle-label" style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><input type="checkbox" id="showBestMoveToggle" checked> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> Best Move</label>
+          <label class="toggle-label" style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><input type="checkbox" id="showEvalBarToggle" checked> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="17" y="12" width="4" height="9" rx="1"/></svg> Eval Bar</label>
+          <label class="toggle-label" style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><input type="checkbox" id="showHintsToggle" checked> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg> Hints</label>
+          <label class="toggle-label" style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><input type="checkbox" id="highlightLastMoveToggle" checked> <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" stroke="none" opacity="0.6"/></svg> Highlight</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import / Export Card -->
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Import / Export</div>
+      <div class="status-body" style="padding:10px">
+        <div class="btn-row" style="flex-wrap: wrap; gap: 4px;">
+          <button class="btn primary" id="importBtn" onclick="document.getElementById('importOv').classList.add('show')" title="Import FEN/PGN" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 10px; font-size: 0.72rem;"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Import</button>
+          <button class="btn" id="copyFenBtn" onclick="triggerExportFen()" title="Copy FEN" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 10px; font-size: 0.72rem;"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> FEN</button>
+          <button class="btn" onclick="triggerExportPgn()" title="Copy PGN" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 10px; font-size: 0.72rem;"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> PGN</button>
+          <button class="btn" id="editBoardBtn" onclick="window.app.toggleBoardEditor()" title="Edit Board" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 10px; font-size: 0.72rem;"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg> <span id="editBtnText">Edit</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Import Overlay -->
+    <div class="overlay" id="importOv">
+      <div class="promo-dlg" style="max-width: 400px; width: 100%;">
+        <h3>Import FEN / PGN</h3>
+        <textarea id="fenPgnInput" placeholder="Paste FEN or PGN here..." style="width:100%; height:120px; background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:0.75rem; resize:vertical; margin-bottom:12px; outline:none"></textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="document.getElementById('importOv').classList.remove('show'); document.getElementById('fenPgnInput').value=''">Cancel</button>
+          <button class="btn primary" onclick="triggerImport()">Import Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Promotion Overlay -->
+    <div class="overlay" id="promoOv">
+      <div class="promo-dlg">
+        <h3>Promote Pawn</h3>
+        <div class="promo-row" id="promoRow"></div>
+      </div>
+    </div>
+
+    <!-- Identity Theft Power Select Overlay -->
+    <div class="overlay" id="powerSelectOverlay">
+      <div class="promo-dlg" style="max-width: 300px;">
+        <h3 style="margin-bottom:8px;">Identity Theft Limit</h3>
+        <p style="font-size:0.8rem; color:var(--dim); margin-bottom:16px;">Select exactly 2 powers to keep.</p>
+        <div class="promo-row" id="powerSelectContainer" style="flex-wrap: wrap; justify-content: center; margin-bottom: 16px;">
+        </div>
+        <button class="btn primary" id="confirmPowerSelectBtn" style="width:100%;" disabled>Confirm Selection</button>
+      </div>
+    </div>
+
+    <!-- Challenge Popup (Bottom Right) -->
+    <div class="challenge-popup" id="challengePopup" style="display:none;">
+      <div class="card-hd">Game Proposal</div>
+      <div class="status-body" style="padding:14px; gap:8px;">
+        <div style="font-size:0.8rem; color:var(--text); margin-bottom:4px;">Opponent proposed:</div>
+        <div id="challengeVariantsList" style="font-size:0.75rem; color:var(--gold); display:flex; flex-direction:column; gap:4px; margin-bottom:8px; padding-left:8px; border-left:2px solid var(--border);"></div>
+        <div class="btn-row">
+          <button class="btn primary" id="acceptChallengeBtn" style="flex:1;">Accept</button>
+          <button class="btn" id="declineChallengeBtn" style="flex:1; background:var(--panel); color:var(--fg); border:1px solid var(--border);">Decline</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proposal Popup (Bottom Right) -->
+    <div class="challenge-popup" id="proposalPopup" style="display:none;">
+      <div class="card-hd" id="proposalTitle">Request</div>
+      <div class="status-body" style="padding:14px; gap:8px;">
+        <div id="proposalText" style="font-size:0.8rem; color:var(--text); margin-bottom:4px;">Opponent requested an undo.</div>
+        <div class="btn-row">
+          <button class="btn primary" id="acceptProposalBtn" style="flex:1;">Accept</button>
+          <button class="btn" id="declineProposalBtn" style="flex:1; background:var(--panel); color:var(--fg); border:1px solid var(--border);">Decline</button>
+        </div>
+      </div>
+    </div>
+
+<!-- Game End Banner Overlay -->
+<div class="result-banner" id="resultBanner">
+  <div class="result-box">
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <button class="btn primary" id="rematchBtn" style="margin-top:8px; width:100%;" onclick="window.app.rematch()">Rematch</button>
+    <button class="btn" style="margin-top:6px; width:100%;" onclick="window.app.goToMenu()">Menu</button>
+    <button class="btn" id="reviewBtn" style="margin-top:6px; width:100%;" onclick="window.app.hideResultBanner()">Review</button>
+  </div>
+</div>
+
+<!-- Claim Username Modal -->
+<div id="claimModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; flex-direction:column; align-items:center; justify-content:center;">
+  <div class="card" style="width:90%; max-width:320px; padding:20px; text-align:center;">
+    <h3 style="margin-top:0; color:var(--gold);">Claim Username</h3>
+    <p style="font-size:0.8rem; color:var(--dim); margin-bottom:16px;">Pick a unique username for your account.</p>
+    <input type="text" id="claimUsernameInput" class="join-code-input" placeholder="e.g. chessmaster99" style="text-transform:none; letter-spacing:1px; font-size:1rem; margin-bottom:8px;">
+    <div id="claimError" style="color:var(--check-light); font-size:0.75rem; min-height:16px; margin-bottom:8px;"></div>
+    <button class="btn primary" id="claimSubmitBtn" style="width:100%;">Claim</button>
+  </div>
+</div>
+
+<!-- External scripts & dependencies -->
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<script src="js/svg.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/timer.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/variants.js"></script>
+<script src="js/webrtc.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.auth) window.auth.init();
+    window.app.init();
+    window.ui.init();
+  });
+</script>
+</body>
+</html>
