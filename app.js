@@ -1,4 +1,5 @@
 // --- CHESSOLOGY APPLICATION LAYER -------------------------------------------
+console.log("Chessology app.js loaded: Version [P2P-Sync-Fix-v4]");
 const APP_TIMING = {
   SESSION_RESTORE_DELAY_MS: 500,
   RESULT_BANNER_DELAY_MS: 300,
