@@ -1011,6 +1011,7 @@ window.app = {
 
   // â”€â”€â”€ MOVE EXECUTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   execMove(fromRow, fromCol, toRow, toCol, flags, promo = null) {
+    console.log("Local move executed:", {fromRow, fromCol, toRow, toCol, flags, promo}, "Turn:", turn, "Board FEN:", boardToFen(board, turn, castling, enPassantSquare));
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
 
     // Roll dice for next turn if Dice Chess
