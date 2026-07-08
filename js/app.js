@@ -1527,8 +1527,8 @@ window.app = {
   onPointerDown(e) {
     if (pointerId !== null || window.pendingPowerSelection) return;
     
-    // Lock controls online when it is opponent's turn (only if game is active)
-    if (this.gameState === 'playing' && webrtc.active && turn !== webrtc.myColor) return;
+    // Lock controls online when it is opponent's turn (only if game is active, bypass for draft phase)
+    if (this.gameState === 'playing' && webrtc.active && turn !== webrtc.myColor && !window.variants.isDraftActive) return;
 
     if (this.resolveInputMode(e)) return;
 
