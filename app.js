@@ -2239,7 +2239,9 @@ window.app = {
     }
 
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
-    if (window.variants.diceChessEnabled) window.variants.rollDice(turn);
+    // NOTE: Do NOT call rollDice here. The Host rolls dice and broadcasts
+    // the result via a separate 'dice-roll' packet received by onDiceRoll().
+    // Rolling locally here would desync the dice state.
     this.renderAll();
   },
 
