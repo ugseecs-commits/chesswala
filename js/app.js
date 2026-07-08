@@ -2239,15 +2239,18 @@ window.app = {
     }
 
     const legalMoves = allLegalMoves(turn, board, enPassantSquare, castling, true);
+    // Note: we do NOT check promo here. The engine's move generator never sets a
+    // promo field — any promotion piece (Q/R/B/N) is always valid for a legal
+    // pawn-to-back-rank move. The piece choice is a UI decision, not a legality one.
     const isValid = legalMoves.some(m =>
       m.from.r === fromRow && m.from.c === fromCol &&
-      m.to.r === toRow && m.to.c === toCol &&
-      (!promo || m.promo === promo)
+      m.to.r === toRow && m.to.c === toCol
     );
 
+
     if (!isValid) {
-      const moveStr = squareToAlg({r: fromRow, c: fromCol}) + squareToAlg({r: toRow, c: toCol});
-      const legalMovesStr = legalMoves.map(m => `${squareToAlg(m.from)}->${squareToAlg(m.to)}`).join(', ');
+      const moveStr = squareToAlg(fromRow, fromCol) + squareToAlg(toRow, toCol);
+      const legalMovesStr = legalMoves.map(m => `${squareToAlg(m.from.r, m.from.c)}->${squareToAlg(m.to.r, m.to.c)}`).join(', ');
       const diceStr = window.variants ? window.variants.allowedDiceTypes.join(',') : 'N/A';
       const debugText = `MOVE: ${moveStr} | TURN: ${turn} | MY_COLOR: ${webrtc.myColor} | FEN: ${boardToFen(board, turn, castling, enPassantSquare)} | DICE: ${diceStr} | LEGAL_MOVES: [${legalMovesStr}]`;
       console.error('ILLEGAL REMOTE MOVE DETAILS:', debugText);
@@ -2264,6 +2267,9 @@ window.app = {
     }
 
     this.execMoveDirect(fromRow, fromCol, toRow, toCol, flags, promo);
+    if (window.variants.diceChessEnabled) {
+      window.variants.rollDice(turn);
+    }
     this.renderAll();
   },
 
@@ -2274,6 +2280,16 @@ window.app = {
 
   onDraftLock(data) {
     window.variants.draftLocked[data.color] = true;
+    
+    // Clear the locking player's home territory to avoid duplicate/orphaned pieces
+    const startRow = data.color === 'w' ? 4 : 0;
+    const endRow = data.color === 'w' ? 7 : 3;
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = 0; c < 8; c++) {
+        board[r][c] = null;
+      }
+    }
+
     if (data.board && Array.isArray(data.board)) {
       data.board.forEach(p => {
         board[p.r][p.c] = { type: p.type, color: data.color, types: p.types };
@@ -2356,6 +2372,16 @@ window.app = {
       const identityModeSelect = document.getElementById('identityTheftMode');  if (identityModeSelect) identityModeSelect.value = data.variants.identityTheftMode;
       const hbToggle = document.getElementById('handAndBrainToggle'); if (hbToggle) hbToggle.checked = data.variants.handAndBrainEnabled;
     }
+    
+    if (data.clockConfig) {
+      window.timer.init(data.clockConfig.wTime, data.clockConfig.bTime, data.clockConfig.wInc, data.clockConfig.bInc);
+      if (window.timer.enabled && (!data.variants || !data.variants.draftEnabled)) {
+        window.timer.start('w');
+      }
+    } else {
+      window.timer.init(0, 0, 0, 0);
+    }
+
     window.variants.init();
     this.triggerBrainAnalysis();
     this.renderAll();

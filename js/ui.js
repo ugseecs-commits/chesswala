@@ -342,15 +342,40 @@ window.ui = {
       });
     };
 
+    // Online variants mutual exclusivity
     setupVariantExclusivity('handAndBrainToggle', [
       'diceChessToggle',
       'identityTheftToggle',
       'fogOfWarToggle'
     ]);
+    setupVariantExclusivity('diceChessToggle', [
+      'handAndBrainToggle',
+      'identityTheftToggle',
+      'fogOfWarToggle'
+    ]);
+    setupVariantExclusivity('identityTheftToggle', [
+      'handAndBrainToggle',
+      'diceChessToggle',
+      'fogOfWarToggle'
+    ]);
+    setupVariantExclusivity('fogOfWarToggle', [
+      'handAndBrainToggle',
+      'diceChessToggle',
+      'identityTheftToggle'
+    ]);
 
+    // Offline variants mutual exclusivity
     setupVariantExclusivity('handAndBrainToggleOffline', [
       'diceChessToggleOffline',
       'identityTheftToggleOffline'
+    ]);
+    setupVariantExclusivity('diceChessToggleOffline', [
+      'handAndBrainToggleOffline',
+      'identityTheftToggleOffline'
+    ]);
+    setupVariantExclusivity('identityTheftToggleOffline', [
+      'handAndBrainToggleOffline',
+      'diceChessToggleOffline'
     ]);
   }
 };
